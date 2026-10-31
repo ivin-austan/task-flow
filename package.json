@@ -2,6 +2,7 @@
   "name": "task-manager",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "npm@12.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
