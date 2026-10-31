@@ -1,0 +1,40 @@
+[
+  {
+    "id": 1,
+    "title": "Plan the product roadmap",
+    "description": "Review the quarterly goals and break them into milestones for the team.",
+    "status": "in-progress",
+    "priority": "high",
+    "dueDate": "2026-11-02",
+    "createdAt": "2026-10-25T09:00:00.000Z",
+    "updatedAt": "2026-10-28T13:30:00.000Z"
+  },
+  {
+    "id": 2,
+    "title": "Prepare design handoff",
+    "description": "Collect final screens, assets, and interaction notes for engineering.",
+    "status": "todo",
+    "priority": "medium",
+    "dueDate": "2026-11-04",
+    "createdAt": "2026-10-26T10:15:00.000Z",
+    "updatedAt": "2026-10-26T10:15:00.000Z"
+  },
+  {
+    "id": 3,
+    "title": "Send project update",
+    "status": "completed",
+    "priority": "low",
+    "createdAt": "2026-10-20T08:30:00.000Z",
+    "updatedAt": "2026-10-27T16:45:00.000Z"
+  },
+  {
+    "id": 4,
+    "title": "Review customer feedback",
+    "description": "Summarize recurring requests from the latest feedback batch.",
+    "status": "todo",
+    "priority": "high",
+    "dueDate": "2026-10-29",
+    "createdAt": "2026-10-22T11:00:00.000Z",
+    "updatedAt": "2026-10-22T11:00:00.000Z"
+  }
+]
