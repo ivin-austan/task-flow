@@ -11,6 +11,8 @@ export default defineConfig([
     'dist-server',
     'migrations/snapshots',
     'server/src/generated',
+    'server/src/prisma/contract.json',
+    'server/src/prisma/contract.d.ts',
   ]),
   {
     files: ['**/*.{ts,tsx}'],

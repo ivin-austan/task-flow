@@ -1,4 +1,3 @@
-import { Prisma } from "../generated/prisma/client.js";
 import { ZodError } from "zod";
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { TaskNotFoundError } from "../services/task.service.js";
@@ -33,16 +32,6 @@ export const errorHandler: ErrorRequestHandler = (
   if (error instanceof TaskNotFoundError) {
     response.status(404).json({
       error: { code: "TASK_NOT_FOUND", message: error.message },
-    });
-    return;
-  }
-
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2025"
-  ) {
-    response.status(404).json({
-      error: { code: "RESOURCE_NOT_FOUND", message: "The requested record was not found." },
     });
     return;
   }

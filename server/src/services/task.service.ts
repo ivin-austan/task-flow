@@ -1,10 +1,6 @@
-import {
-  Prisma,
-  TaskPriority,
-  TaskStatus,
-  type Task,
-} from "../generated/prisma/client.js";
-import { prisma } from "../config/database.js";
+import { and } from "@prisma/orm-postgres/orm-client";
+import { db } from "../prisma/db.js";
+import type { Models } from "../prisma/contract.js";
 import type {
   CreateTaskBody,
   TaskListQuery,
@@ -16,6 +12,12 @@ import type {
   TaskListFilters,
 } from "../types/task.types.js";
 
+type TaskRecord = Models.public_Task;
+type TaskStatus = TaskRecord["status"];
+type TaskPriority = TaskRecord["priority"];
+type ApiTaskStatus = TaskDto["status"];
+type ApiTaskPriority = TaskDto["priority"];
+
 export class TaskNotFoundError extends Error {
   constructor() {
     super("Task not found.");
@@ -23,75 +25,61 @@ export class TaskNotFoundError extends Error {
   }
 }
 
-type ApiTaskStatus = "todo" | "in-progress" | "completed";
-type ApiTaskPriority = "low" | "medium" | "high";
+const apiToDbStatus: Record<ApiTaskStatus, TaskStatus> = {
+  todo: "TODO",
+  "in-progress": "IN_PROGRESS",
+  completed: "COMPLETED",
+};
+const dbToApiStatus: Record<TaskStatus, ApiTaskStatus> = {
+  TODO: "todo",
+  IN_PROGRESS: "in-progress",
+  COMPLETED: "completed",
+};
+const apiToDbPriority: Record<ApiTaskPriority, TaskPriority> = {
+  low: "LOW",
+  medium: "MEDIUM",
+  high: "HIGH",
+};
+const dbToApiPriority: Record<TaskPriority, ApiTaskPriority> = {
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
+};
 
-function toPrismaStatus(status: ApiTaskStatus): TaskStatus {
-  const statuses: Record<"todo" | "in-progress" | "completed", TaskStatus> = {
-    todo: TaskStatus.TODO,
-    "in-progress": TaskStatus.IN_PROGRESS,
-    completed: TaskStatus.COMPLETED,
-  };
-  return statuses[status];
-}
-
-function toPrismaPriority(priority: ApiTaskPriority): TaskPriority {
-  const priorities: Record<ApiTaskPriority, TaskPriority> = {
-    low: TaskPriority.LOW,
-    medium: TaskPriority.MEDIUM,
-    high: TaskPriority.HIGH,
-  };
-  return priorities[priority];
-}
-
-export function toTaskDto(task: Task): TaskDto {
-  const statuses: Record<TaskStatus, TaskDto["status"]> = {
-    [TaskStatus.TODO]: "todo",
-    [TaskStatus.IN_PROGRESS]: "in-progress",
-    [TaskStatus.COMPLETED]: "completed",
-  };
-  const priorities: Record<TaskPriority, TaskDto["priority"]> = {
-    [TaskPriority.LOW]: "low",
-    [TaskPriority.MEDIUM]: "medium",
-    [TaskPriority.HIGH]: "high",
-  };
-
+export function toTaskDto(task: TaskRecord): TaskDto {
   return {
     id: task.id,
     title: task.title,
     ...(task.description === null ? {} : { description: task.description }),
-    status: statuses[task.status],
-    priority: priorities[task.priority],
-    ...(task.dueDate === null
-      ? {}
-      : { dueDate: task.dueDate.toISOString().slice(0, 10) }),
-    createdAt: task.createdAt.toISOString(),
-    updatedAt: task.updatedAt.toISOString(),
+    status: dbToApiStatus[task.status],
+    priority: dbToApiPriority[task.priority],
+    ...(task.dueDate === null ? {} : { dueDate: task.dueDate }),
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
   };
 }
 
-function toWhere(filters: TaskListFilters): Prisma.TaskWhereInput {
-  const where: Prisma.TaskWhereInput = {};
+function whereTasks(filters: TaskListFilters) {
+  return db.orm.public.Task.where((task) => {
+    const conditions = [task.id.isNotNull()];
 
-  if (filters.search) {
-    where.title = { contains: filters.search, mode: "insensitive" };
-  }
-  if (filters.status) {
-    where.status = filters.status;
-  }
-  if (filters.priority) {
-    where.priority = filters.priority;
-  }
-  if (filters.overdueOnly) {
-    const todayUtc = new Date();
-    todayUtc.setUTCHours(0, 0, 0, 0);
-    where.dueDate = { lt: todayUtc };
-    where.status = filters.status
-      ? { equals: filters.status, not: TaskStatus.COMPLETED }
-      : { not: TaskStatus.COMPLETED };
-  }
+    if (filters.search) {
+      const search = filters.search.replace(/[\\%_]/g, "\\$&");
+      conditions.push(task.title.ilike(`%${search}%`));
+    }
+    if (filters.status) {
+      conditions.push(task.status.eq(filters.status));
+    }
+    if (filters.priority) {
+      conditions.push(task.priority.eq(filters.priority));
+    }
+    if (filters.overdueOnly) {
+      conditions.push(task.dueDate.lt(new Date().toISOString().slice(0, 10)));
+      conditions.push(task.status.neq("COMPLETED"));
+    }
 
-  return where;
+    return and(...conditions);
+  });
 }
 
 export async function listTasks(query: TaskListQuery) {
@@ -99,28 +87,32 @@ export async function listTasks(query: TaskListQuery) {
     page: query.page,
     pageSize: query.pageSize,
     search: query.search,
-    ...(query.status ? { status: toPrismaStatus(query.status) } : {}),
-    ...(query.priority ? { priority: toPrismaPriority(query.priority) } : {}),
+    ...(query.status ? { status: apiToDbStatus[query.status] } : {}),
+    ...(query.priority ? { priority: apiToDbPriority[query.priority] } : {}),
     overdueOnly: query.overdueOnly,
     sortBy: query.sortBy,
     sortOrder: query.sortOrder,
   };
-  const where = toWhere(filters);
-  const orderBy: Prisma.TaskOrderByWithRelationInput =
-    filters.sortBy === "dueDate"
-      ? { dueDate: { sort: filters.sortOrder, nulls: "last" } }
-      : { createdAt: filters.sortOrder };
   const skip = (filters.page - 1) * filters.pageSize;
 
-  const [records, total] = await prisma.$transaction([
-    prisma.task.findMany({
-      where,
-      orderBy: [orderBy, { id: "asc" }],
-      skip,
-      take: filters.pageSize,
-    }),
-    prisma.task.count({ where }),
+  const recordsQuery = whereTasks(filters)
+    .orderBy([
+      (task) =>
+        filters.sortBy === "dueDate"
+          ? task.dueDate[filters.sortOrder]({ nulls: "last" })
+          : task.createdAt[filters.sortOrder](),
+      (task) => task.id.asc(),
+    ])
+    .limit(filters.pageSize)
+    .offset(skip);
+
+  const [records, count] = await Promise.all([
+    recordsQuery.all(),
+    whereTasks(filters).aggregate((aggregate) => ({
+      total: aggregate.count(),
+    })),
   ]);
+  const total = count.total;
 
   return {
     data: records.map(toTaskDto),
@@ -134,28 +126,25 @@ export async function listTasks(query: TaskListQuery) {
 }
 
 export async function getTask(id: string): Promise<TaskDto> {
-  const task = await prisma.task.findUnique({ where: { id } });
-  if (!task) {
+  const task = await db.orm.public.Task.first({ id });
+  if (task === null) {
     throw new TaskNotFoundError();
   }
   return toTaskDto(task);
 }
 
-function toDueDate(value: string | undefined): Date | null | undefined {
+function toDueDate(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
-  if (value === "") return null;
-  return new Date(`${value}T00:00:00.000Z`);
+  return value === "" ? null : value;
 }
 
 export async function createTask(input: CreateTaskBody): Promise<TaskDto> {
-  const task = await prisma.task.create({
-    data: {
-      title: input.title,
-      description: input.description || null,
-      status: toPrismaStatus(input.status),
-      priority: toPrismaPriority(input.priority),
-      dueDate: toDueDate(input.dueDate),
-    },
+  const task = await db.orm.public.Task.create({
+    title: input.title,
+    description: input.description || null,
+    status: apiToDbStatus[input.status],
+    priority: apiToDbPriority[input.priority],
+    dueDate: toDueDate(input.dueDate),
   });
   return toTaskDto(task);
 }
@@ -164,72 +153,74 @@ export async function updateTask(
   id: string,
   input: UpdateTaskBody,
 ): Promise<TaskDto> {
-  const data: Prisma.TaskUpdateInput = {};
+  const data: {
+    title?: string;
+    description?: string | null;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    dueDate?: string | null;
+  } = {};
   if (input.title !== undefined) data.title = input.title;
   if (input.description !== undefined) {
     data.description = input.description || null;
   }
-  if (input.status !== undefined) data.status = toPrismaStatus(input.status);
-  if (input.priority !== undefined) data.priority = toPrismaPriority(input.priority);
-  if (input.dueDate !== undefined) {
-    data.dueDate = input.dueDate === null ? null : toDueDate(input.dueDate);
+  if (input.status !== undefined) data.status = apiToDbStatus[input.status];
+  if (input.priority !== undefined) {
+    data.priority = apiToDbPriority[input.priority];
   }
+  if (input.dueDate !== undefined) data.dueDate = toDueDate(input.dueDate);
 
-  try {
-    return toTaskDto(await prisma.task.update({ where: { id }, data }));
-  } catch (error: unknown) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
-      throw new TaskNotFoundError();
-    }
-    throw error;
+  const task = await db.orm.public.Task
+    .where((record) => record.id.eq(id))
+    .update(data);
+  if (task === null) {
+    throw new TaskNotFoundError();
   }
+  return toTaskDto(task);
 }
 
 export async function removeTask(id: string): Promise<void> {
-  try {
-    await prisma.task.delete({ where: { id } });
-  } catch (error: unknown) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
-      throw new TaskNotFoundError();
-    }
-    throw error;
+  const task = await db.orm.public.Task
+    .where((record) => record.id.eq(id))
+    .delete();
+  if (task === null) {
+    throw new TaskNotFoundError();
   }
 }
 
 export async function getDashboardStatistics(): Promise<DashboardStatistics> {
-  const [groups, total, highPriority] = await Promise.all([
-    prisma.task.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.task.count(),
-    prisma.task.count({ where: { priority: TaskPriority.HIGH } }),
-  ]);
+  const [totalResult, highPriorityResult, todoResult, inProgressResult, completedResult] =
+    await Promise.all([
+      db.orm.public.Task.aggregate((aggregate) => ({
+        count: aggregate.count(),
+      })),
+      db.orm.public.Task
+        .where((task) => task.priority.eq("HIGH"))
+        .aggregate((aggregate) => ({ count: aggregate.count() })),
+      db.orm.public.Task
+        .where((task) => task.status.eq("TODO"))
+        .aggregate((aggregate) => ({ count: aggregate.count() })),
+      db.orm.public.Task
+        .where((task) => task.status.eq("IN_PROGRESS"))
+        .aggregate((aggregate) => ({ count: aggregate.count() })),
+      db.orm.public.Task
+        .where((task) => task.status.eq("COMPLETED"))
+        .aggregate((aggregate) => ({ count: aggregate.count() })),
+    ]);
 
+  const total = totalResult.count;
   const byStatus: DashboardStatistics["byStatus"] = {
-    todo: 0,
-    "in-progress": 0,
-    completed: 0,
+    todo: todoResult.count,
+    "in-progress": inProgressResult.count,
+    completed: completedResult.count,
   };
-  for (const group of groups) {
-    if (group.status === TaskStatus.TODO) byStatus.todo = group._count._all;
-    if (group.status === TaskStatus.IN_PROGRESS) {
-      byStatus["in-progress"] = group._count._all;
-    }
-    if (group.status === TaskStatus.COMPLETED) {
-      byStatus.completed = group._count._all;
-    }
-  }
 
   return {
     total,
     completed: byStatus.completed,
     pending: byStatus.todo,
     inProgress: byStatus["in-progress"],
-    highPriority,
+    highPriority: highPriorityResult.count,
     completionPercent:
       total === 0 ? 0 : Math.round((byStatus.completed / total) * 100),
     byStatus,

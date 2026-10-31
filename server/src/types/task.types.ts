@@ -1,7 +1,7 @@
-import type {
-  TaskPriority,
-  TaskStatus,
-} from "../generated/prisma/client.js";
+import type { Models } from "../prisma/contract.js";
+
+type TaskStatus = Models.public_Task["status"];
+type TaskPriority = Models.public_Task["priority"];
 
 export interface TaskDto {
   id: string;

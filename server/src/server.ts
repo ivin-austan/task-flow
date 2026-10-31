@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { app } from "./app.js";
-import { prisma } from "./config/database.js";
+import { db } from "./prisma/db.js";
 
 const port = Number(process.env.PORT ?? 4000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -18,7 +18,12 @@ async function shutdown(signal: string): Promise<void> {
       console.error("HTTP server shutdown failed.", error);
       process.exitCode = 1;
     }
-    await prisma.$disconnect();
+    try {
+      await db.close();
+    } catch (shutdownError: unknown) {
+      console.error("Database shutdown failed.", shutdownError);
+      process.exitCode = 1;
+    }
   });
 }
 

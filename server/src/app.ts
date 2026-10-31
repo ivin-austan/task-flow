@@ -4,7 +4,7 @@ import helmet from "helmet";
 import { taskRouter } from "./routes/task.routes.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
 import { asyncHandler } from "./utils/async-handler.js";
-import { prisma } from "./config/database.js";
+import { db } from "./prisma/db.js";
 
 export const app = express();
 
@@ -18,7 +18,9 @@ app.use(express.json({ limit: "32kb" }));
 app.get(
   "/api/health",
   asyncHandler(async (_request, response) => {
-    await prisma.$queryRaw`SELECT 1`;
+    await db.orm.public.Task.aggregate((aggregate) => ({
+      taskCount: aggregate.count(),
+    }));
     response.json({ data: { status: "ok" } });
   }),
 );

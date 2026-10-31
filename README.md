@@ -8,9 +8,7 @@ Taskflow is a full-stack task manager. The React + TypeScript frontend uses TanS
 - PostgreSQL 15+
 - npm
 
-The project is being migrated incrementally: Prisma ORM 8 CLI `8.0.0-rc.29` and PostgreSQL runtime `8.0.0-rc.21` are installed alongside the Prisma ORM 7 application. The runtime is pinned to `rc.21` because the latest `rc.22` failed contract emission with this CLI. The current API and database migrations still use Prisma 7 while the Prisma 8 contract is emitted from the existing schema. Prisma 8 packages are prereleases and are not recommended for production.
-
-Prisma 8's initial migration is tracked under `migrations/app/`. It was planned from an empty database for the Prisma deployment target. The legacy Prisma 7 SQL migration remains under `server/prisma/migrations/`.
+The application uses Prisma ORM 8 only. Its data contract is [server/src/prisma/contract.prisma](./server/src/prisma/contract.prisma), and the single migration history is stored under `migrations/app/`. Prisma 8 is currently installed at release-candidate versions (`prisma@8.0.0-rc.29` and `@prisma/orm-postgres@8.0.0-rc.21`); the runtime is pinned to `rc.21` because `rc.22` failed contract emission with this CLI.
 
 ## Local setup
 
@@ -28,7 +26,7 @@ Prisma 8's initial migration is tracked under `migrations/app/`. It was planned 
 
    Create the `task_manager` database first if it does not exist. Update the port to match your PostgreSQL configuration.
 
-2. Generate Prisma Client, apply the migration, and insert sample tasks into an empty database:
+2. Emit the Prisma 8 contract artifacts, apply the committed migration, and insert sample tasks into an empty database:
 
    ```sh
    npm run db:generate
@@ -36,7 +34,7 @@ Prisma 8's initial migration is tracked under `migrations/app/`. It was planned 
    npm run db:seed
    ```
 
-   The seed script does nothing when the database already contains tasks.
+   The seed script does nothing when the database already contains tasks. The committed initial migration was planned from an empty database.
 
 3. Start the API and frontend in separate terminals:
 
@@ -54,12 +52,11 @@ Prisma 8's initial migration is tracked under `migrations/app/`. It was planned 
 
 | Command | Purpose |
 |---|---|
-| `npm run db:generate` | Generate Prisma Client |
-| `npm run db:migrate` | Create/apply a development migration |
-| `npm run db:deploy` | Apply committed migrations in deployment |
+| `npm run db:generate` | Emit Prisma 8 runtime and type artifacts from the contract |
+| `npm run db:plan -- --name <slug>` | Plan a migration from contract changes |
+| `npm run db:migrate` | Apply pending committed Prisma 8 migrations |
+| `npm run db:deploy` | Apply pending migrations in deployment |
 | `npm run db:seed` | Seed sample tasks into an empty database |
-| `npm run db8:emit` | Emit Prisma 8 contract artifacts from the existing schema |
-| `npm run db8:migrate` | Apply committed Prisma 8 migrations |
 | `npm run dev:api` | Run the API with watch mode |
 | `npm run dev` | Run the Vite frontend |
 | `npm run build` | Type-check and build frontend and backend |
@@ -79,4 +76,4 @@ npm run start:api
 - [Architecture](./docs/PROJECT_ARCHITECTURE.md)
 - [TypeScript learning notes](./docs/TYPESCRIPT_LEARNING_NOTES.md)
 
-The API still uses the Prisma 7 client during this migration phase. The app does not currently implement authentication. Configure trusted local database credentials in `.env`; database credentials are never sent to the browser.
+The app does not currently implement authentication. Configure trusted local database credentials in `.env`; database credentials are never sent to the browser.

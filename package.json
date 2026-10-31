@@ -10,17 +10,14 @@
     "build": "npm run db:generate && tsc -b && tsc -p tsconfig.server.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:generate": "prisma7 generate",
-    "db:migrate": "prisma7 migrate dev",
-    "db:deploy": "prisma7 migrate deploy",
-    "db:seed": "prisma7 db seed",
-    "db8:emit": "prisma contract emit",
-    "db8:migrate": "prisma db migrate"
+    "db:generate": "prisma contract emit",
+    "db:migrate": "prisma db migrate",
+    "db:deploy": "prisma db migrate",
+    "db:seed": "tsx server/src/prisma/seed.ts",
+    "db:plan": "prisma migration plan"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
-    "@prisma/adapter-pg": "7.10.1",
-    "@prisma/client": "7.10.1",
     "@prisma/orm-postgres": "8.0.0-rc.21",
     "@tanstack/react-query": "^5.105.0",
     "cors": "^2.8.6",
@@ -37,7 +34,6 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@eslint/js": "^10.0.1",
-    "@prisma/prisma7": "7.10.1",
     "@rolldown/plugin-babel": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
     "@types/babel__core": "^7.20.5",

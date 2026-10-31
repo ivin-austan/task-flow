@@ -1,0 +1,31 @@
+// use prisma-8
+// Prisma 8 application contract. Query types and migrations are derived from this file.
+
+namespace public {
+  model Task {
+    id          Uuid                  @id @default(sql`gen_random_uuid()`)
+    title       VarChar(120)
+    description String?
+    status      pg.enum(TaskStatus)   @default("TODO")
+    priority    pg.enum(TaskPriority) @default("MEDIUM")
+    dueDate     DateString?
+    createdAt   TimestamptzString(3)  @default(now()) @onCreate(now())
+    updatedAt   TimestamptzString(3)  @onCreate(now()) @onUpdate(now())
+
+    @@index([status, priority], map: "Task_status_priority_idx")
+    @@index([dueDate], map: "Task_dueDate_idx")
+    @@index([createdAt], map: "Task_createdAt_idx")
+  }
+
+  native_enum TaskStatus {
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+  }
+
+  native_enum TaskPriority {
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+  }
+}

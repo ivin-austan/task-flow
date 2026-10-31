@@ -10,8 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-server
-server/src/generated/prisma
-server/src/generated/prisma8
+server/src/prisma/contract.json
+server/src/prisma/contract.d.ts
 dist-ssr
 *.local
 .env

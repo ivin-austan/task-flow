@@ -33,9 +33,8 @@ src/
   types/            Frontend API/domain contracts
   utils/            Small presentation utilities
 server/
-  prisma/           PostgreSQL schema, migrations, and seed script
   src/
-    config/         Prisma client setup
+    prisma/         Prisma 8 contract, runtime client, and seed script
     controllers/    HTTP request/response orchestration
     middleware/     Validation and centralized errors
     routes/         REST endpoint registration
@@ -64,7 +63,7 @@ docs/               API, architecture, and TypeScript guides
 
 ## Prisma and database model
 
-`server/prisma/schema.prisma` defines a Task with a PostgreSQL-generated UUID, title/description, enum status/priority, optional `DATE` due date, and timestamps. Indexes support common status/priority, due-date, and creation-date filters/sorts. The legacy Prisma 7 SQL migration is under `server/prisma/migrations`. A Prisma 8 initial migration, planned from an empty deployment database, is committed under root `migrations/app/`. This repository is in the side-by-side phase of the Prisma 7-to-8 migration: `prisma7.config.ts` and the `prisma7` CLI continue to own the current API's migration and generated client, while root `prisma.config.ts` uses `prisma7Schema(...)` to emit a Prisma 8 contract into `server/src/generated/prisma8`. The Prisma 8 CLI (`8.0.0-rc.29`) and PostgreSQL runtime (`8.0.0-rc.21`) are separately versioned prereleases; the runtime is pinned to `rc.21` because `rc.22` failed contract emission with this CLI. The API still uses the Prisma 7 client; do not remove the Prisma 7 packages until the API has been migrated and verified.
+`server/src/prisma/contract.prisma` is the single source of truth for the Task model: PostgreSQL-generated UUID, title/description, status/priority enums, optional `DATE` due date, timestamps, and indexes for status/priority, due date, and creation date. Prisma 8 derives runtime types and contract artifacts from this file. The only migration history is under root `migrations/app/`, initially planned from an empty deployment database. The API and seed script use the Prisma 8 PostgreSQL runtime; no Prisma 7 client, config, schema, or migration history is retained. The Prisma CLI (`8.0.0-rc.29`) and PostgreSQL runtime (`8.0.0-rc.21`) are separately versioned prereleases; runtime `rc.21` is pinned because `rc.22` failed contract emission with this CLI.
 
 `DATABASE_URL` is read only by the backend and Prisma CLI. `.env.example` documents the format without credentials. The frontend receives neither the URL nor database credentials.
 
@@ -72,7 +71,7 @@ docs/               API, architecture, and TypeScript guides
 
 - Zod request schemas validate route params, query values, date strings, and create/update bodies.
 - Validation middleware passes inferred parsed values to controller functions.
-- The task service maps Prisma enums and translates missing-record errors into a domain not-found error.
+- The task service maps contract enum values and translates missing records into a domain not-found error.
 - Central error middleware returns a stable `{ error: { code, message, details? } }` shape. Stack traces/database details are only logged outside production, never returned to the browser.
 - Helmet, a configured CORS origin, disabled `x-powered-by`, and a 32 KB JSON body limit are set in `server/src/app.ts`.
 
@@ -83,6 +82,6 @@ docs/               API, architecture, and TypeScript guides
 ## Important decisions
 
 - Frontend, server request schemas, Prisma-generated models, and API DTOs remain separate. This prevents database-specific enum and date representations from leaking into the UI.
-- Dashboard stats use Prisma `groupBy` and counts rather than downloading every task to calculate totals in the browser.
+- Dashboard stats use Prisma 8 aggregate counts rather than downloading every task to calculate totals in the browser.
 - List filtering, sorting, and pagination run in SQL. Query keys include the filters so each result page is cached separately.
 - API calls use native `fetch`; no extra HTTP client was necessary.
