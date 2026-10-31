@@ -1,6 +1,11 @@
 import { ZodError } from "zod";
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { TaskNotFoundError } from "../services/task.service.js";
+import {
+  AuthenticationError,
+  EmailDeliveryUnavailableError,
+} from "../services/auth.service.js";
+import { AuthenticationRequiredError } from "./auth.middleware.js";
 
 export const notFoundHandler: RequestHandler = (_request, response) => {
   response.status(404).json({
@@ -32,6 +37,27 @@ export const errorHandler: ErrorRequestHandler = (
   if (error instanceof TaskNotFoundError) {
     response.status(404).json({
       error: { code: "TASK_NOT_FOUND", message: error.message },
+    });
+    return;
+  }
+
+  if (error instanceof AuthenticationError) {
+    response.status(error.status).json({
+      error: { code: error.code, message: error.message },
+    });
+    return;
+  }
+
+  if (error instanceof EmailDeliveryUnavailableError) {
+    response.status(503).json({
+      error: { code: "EMAIL_DELIVERY_UNAVAILABLE", message: error.message },
+    });
+    return;
+  }
+
+  if (error instanceof AuthenticationRequiredError) {
+    response.status(401).json({
+      error: { code: "UNAUTHENTICATED", message: error.message },
     });
     return;
   }

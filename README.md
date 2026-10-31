@@ -26,7 +26,11 @@ The application uses Prisma ORM 8 only. Its data contract is [server/src/prisma/
 
    Create the `task_manager` database first if it does not exist. Update the port to match your PostgreSQL configuration.
 
-2. Emit the Prisma 8 contract artifacts, apply the committed migration, and insert sample tasks into an empty database:
+   Set `LEGACY_TASK_OWNER_EMAIL` to the email address that should own existing tasks. The API assigns unowned existing tasks to that address at startup. Sign up to Taskflow with the same address and verify it to access those tasks.
+
+   Account verification and email alerts use SMTP. Set `SMTP_USER` to your Gmail address and `SMTP_PASSWORD` to a Google app password. Keep these values only in `.env` or your API host's secret settings. For Gmail, enable 2-Step Verification and create an app password in your Google Account security settings; do not use your regular Gmail password. Set `ALERT_TIMEZONE` to your IANA timezone (for example, `America/New_York`). Alerts go to each task owner's verified email: due-date reminders start at 9 a.m. in that timezone, overdue reminders are hourly, and completion messages are immediate. The API must be running to send scheduled alerts.
+
+2. Emit the Prisma 8 contract artifacts, apply the committed migrations, and insert sample tasks into an empty database:
 
    ```sh
    npm run db:generate
@@ -34,7 +38,7 @@ The application uses Prisma ORM 8 only. Its data contract is [server/src/prisma/
    npm run db:seed
    ```
 
-   The seed script does nothing when the database already contains tasks. The committed initial migration was planned from an empty database.
+   The seed script does nothing when the database already contains tasks. Keep `LEGACY_TASK_OWNER_EMAIL` set before starting the API so existing tasks are assigned to the intended account.
 
 3. Start the API and frontend in separate terminals:
 
@@ -67,7 +71,9 @@ The application uses Prisma ORM 8 only. Its data contract is [server/src/prisma/
 
 The frontend uses `VITE_API_URL` as the API origin. Set it in the frontend host's build environment to the deployed API origin, for example `https://your-api.onrender.com` (no trailing slash), then rebuild and redeploy the frontend. Leave it empty for local development, where Vite proxies `/api` to `http://localhost:4000`.
 
-Set `CLIENT_ORIGIN` on the API host to the exact deployed frontend origin, such as `https://your-site.netlify.app`, so the API allows browser requests from that site. Set `DATABASE_URL` on the API host to the hosted PostgreSQL connection string. Neither backend variable belongs in frontend environment settings.
+Set `CLIENT_ORIGIN` on the API host to the exact deployed frontend origin, such as `https://your-site.netlify.app`, so the API allows credentialed browser requests from that site. Set `DATABASE_URL`, `LEGACY_TASK_OWNER_EMAIL`, `SMTP_USER`, `SMTP_PASSWORD`, and `ALERT_TIMEZONE` on the API host. These are backend settings and do not belong in frontend environment settings. Apply database migrations with `npm run db:deploy` before starting the updated API.
+
+The API uses a seven-day HttpOnly session cookie. Email/password accounts require a verified email before sign-in; passwords must be at least 12 characters. Task lists, task details, mutations, dashboard totals, and alerts are scoped to the signed-in, verified email. If you have existing tasks, ensure the legacy owner email matches the account you verify.
 
 Build before running the compiled API:
 
@@ -82,4 +88,4 @@ npm run start:api
 - [Architecture](./docs/PROJECT_ARCHITECTURE.md)
 - [TypeScript learning notes](./docs/TYPESCRIPT_LEARNING_NOTES.md)
 
-The app does not currently implement authentication. Configure trusted local database credentials in `.env`; database credentials are never sent to the browser.
+Task and dashboard endpoints require a verified account. Configure trusted local database and SMTP settings in `.env`; credentials are never sent to the browser.

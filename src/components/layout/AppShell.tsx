@@ -2,6 +2,7 @@ import {
   CheckSquare2,
   LayoutDashboard,
   ListTodo,
+  LogOut,
   PanelLeftClose,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -10,6 +11,8 @@ import type { TaskPage } from "../../types/task.types";
 interface AppShellProps {
   activePage: TaskPage;
   onNavigate: (page: TaskPage) => void;
+  userEmail: string;
+  onSignOut: () => void;
   children: ReactNode;
 }
 
@@ -18,7 +21,13 @@ const navigation: { page: TaskPage; label: string; icon: typeof LayoutDashboard 
   { page: "tasks", label: "My tasks", icon: ListTodo },
 ];
 
-export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
+export function AppShell({
+  activePage,
+  onNavigate,
+  userEmail,
+  onSignOut,
+  children,
+}: AppShellProps) {
   return (
     <div className="min-h-screen bg-[#f7f8fc] text-slate-900">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-slate-200 bg-white px-5 py-7 lg:flex">
@@ -76,10 +85,15 @@ export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
             <span className="hidden text-sm text-slate-400 lg:inline">Workspace</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-500 sm:inline">Good to see you</span>
-            <div className="grid size-9 place-items-center rounded-full bg-amber-100 text-xs font-bold text-amber-800">
-              IV
-            </div>
+            <span className="hidden text-sm text-slate-500 sm:inline">{userEmail}</span>
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
           </div>
         </header>
         <nav className="flex gap-2 border-b border-slate-200 bg-white px-5 py-2 lg:hidden">

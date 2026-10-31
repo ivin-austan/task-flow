@@ -9,12 +9,36 @@ namespace public {
     status      pg.enum(TaskStatus)   @default("TODO")
     priority    pg.enum(TaskPriority) @default("MEDIUM")
     dueDate     DateString?
+    ownerEmail  VarChar(254)?
     createdAt   TimestamptzString(3)  @default(now()) @onCreate(now())
     updatedAt   TimestamptzString(3)  @onCreate(now()) @onUpdate(now())
 
     @@index([status, priority], map: "Task_status_priority_idx")
     @@index([dueDate], map: "Task_dueDate_idx")
     @@index([createdAt], map: "Task_createdAt_idx")
+    @@index([ownerEmail], map: "Task_ownerEmail_idx")
+  }
+
+  model User {
+    id                       Uuid                 @id @default(sql`gen_random_uuid()`)
+    email                    VarChar(254)         @unique
+    passwordHash             VarChar(255)
+    emailVerifiedAt          TimestamptzString(3)?
+    verificationTokenHash    VarChar(64)?
+    verificationExpiresAt    TimestamptzString(3)?
+    createdAt                TimestamptzString(3) @default(now()) @onCreate(now())
+
+    @@index([verificationExpiresAt], map: "User_verificationExpiresAt_idx")
+  }
+
+  model AuthSession {
+    tokenHash  VarChar(64)          @id
+    userId     Uuid
+    expiresAt  TimestamptzString(3)
+    createdAt  TimestamptzString(3) @default(now()) @onCreate(now())
+
+    @@index([userId], map: "AuthSession_userId_idx")
+    @@index([expiresAt], map: "AuthSession_expiresAt_idx")
   }
 
   native_enum TaskStatus {

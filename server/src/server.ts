@@ -1,6 +1,11 @@
 import "dotenv/config";
 import { app } from "./app.js";
 import { db } from "./prisma/db.js";
+import {
+  startEmailAlertScheduler,
+  stopEmailAlertScheduler,
+} from "./services/email-alert.scheduler.js";
+import { assignUnownedTasksToConfiguredEmail } from "./services/task.service.js";
 
 const port = Number(process.env.PORT ?? 4000);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -13,6 +18,7 @@ async function start(): Promise<void> {
     await db.orm.public.Task.aggregate((aggregate) => ({
       taskCount: aggregate.count(),
     }));
+    await assignUnownedTasksToConfiguredEmail();
   } catch (error: unknown) {
     console.error("Database connection failed.", error);
     process.exitCode = 1;
@@ -20,12 +26,14 @@ async function start(): Promise<void> {
   }
 
   console.log("Connected to the database.");
+  startEmailAlertScheduler();
   const server = app.listen(port, () => {
     console.log(`Task API listening on http://localhost:${port}`);
   });
 
   async function shutdown(signal: string): Promise<void> {
     console.log(`${signal} received; shutting down.`);
+    stopEmailAlertScheduler();
     server.close(async (error) => {
       if (error) {
         console.error("HTTP server shutdown failed.", error);

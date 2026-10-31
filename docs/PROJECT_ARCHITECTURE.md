@@ -6,22 +6,23 @@
 React UI
   ├─ TanStack Query: task lists, task details, dashboard, mutations/cache
   └─ Zustand: navigation, filter controls, selected modal/task ID
-       │ same-origin /api requests
+       │ credentialed /api requests
        ▼
 Express API
-  Routes → Zod validation → Controllers → Task service → Prisma Client
+  Auth routes → verified email/password → HttpOnly session cookie
+  Task routes → auth + Zod → controllers → task service → Prisma runtime
                                                         │
-                                                        ▼
-                                                   PostgreSQL
+                                                        └─ PostgreSQL
+  Email alert scheduler ── Gmail-compatible SMTP ── task owner
 ```
 
-The Vite development server proxies `/api` to the Express API. The browser never connects directly to Prisma or PostgreSQL. There is no backend auth yet.
+The Vite development server proxies `/api` to the Express API. The browser never connects directly to Prisma or PostgreSQL. Task routes require a verified account and are scoped by the signed-in user's email.
 
 ## Folders
 
 ```text
 src/
-  components/       Layout, dashboard, and task UI
+  components/       Layout, dashboard, task UI, and account UI
   data/tasks.json   Optional first-run seed records
   hooks/
     queries/        TanStack Query read hooks and query keys
@@ -36,9 +37,9 @@ server/
   src/
     prisma/         Prisma 8 contract, runtime client, and seed script
     controllers/    HTTP request/response orchestration
-    middleware/     Validation and centralized errors
+    middleware/     Authentication, validation, and centralized errors
     routes/         REST endpoint registration
-    services/       Database-backed task logic and mapping
+    services/       Account, task, and email delivery/scheduling logic
     types/          Server API output and query types
     validators/     Zod request schemas
     utils/          Express async and response helpers
@@ -49,23 +50,28 @@ docs/               API, architecture, and TypeScript guides
 
 1. A page invokes a typed TanStack Query hook, whose key includes the request filters or task ID.
 2. The API service uses `fetch` and validates the JSON response with Zod before exposing it as a frontend type.
-3. Express routes validate incoming params, query, and body values with Zod before calling a controller.
-4. Controllers coordinate the response; `server/src/services/task.service.ts` performs typed Prisma operations.
-5. Prisma queries PostgreSQL. The server maps generated Prisma enums/date values into a separate lower-case, JSON-friendly API DTO.
-6. Query data is cached by TanStack Query. Successful create/update/delete mutations invalidate affected task-list and dashboard keys; update also refreshes the selected task detail cache.
+3. Task routes authenticate the user using a hashed opaque session token in an HttpOnly cookie. State-changing browser requests must use the configured trusted origin.
+4. Express routes validate incoming params, query, and body values with Zod before calling a controller.
+5. Controllers coordinate the response; server services perform typed Prisma operations.
+6. Prisma queries PostgreSQL. The server maps generated enums/date values into a separate lower-case, JSON-friendly API DTO.
+7. Query data is cached by TanStack Query. Successful create/update/delete mutations invalidate affected task-list and dashboard keys; update also refreshes the selected task detail cache.
 
 ## State ownership
 
-- **Server state:** Tasks, task details, and dashboard aggregates originate from PostgreSQL. TanStack Query owns the cache, loading/error state, refetch, and mutation lifecycle.
+- **Server state:** Accounts, owned tasks, task details, and dashboard aggregates originate from PostgreSQL. TanStack Query owns the task cache, loading/error state, refetch, and mutation lifecycle.
 - **Client state:** Active navigation, filters/page controls, and selected modal/task ID live in `src/store/ui.store.ts`.
 - Avoid copying the server task collection into Zustand. Duplicated sources of truth can drift after mutations or refetches.
 - In a frontend-only implementation localStorage was sufficient. After this upgrade, localStorage is no longer used for task persistence.
 
 ## Prisma and database model
 
-`server/src/prisma/contract.prisma` is the single source of truth for the Task model: PostgreSQL-generated UUID, title/description, status/priority enums, optional `DATE` due date, timestamps, and indexes for status/priority, due date, and creation date. Prisma 8 derives runtime types and contract artifacts from this file. The only migration history is under root `migrations/app/`, initially planned from an empty deployment database. The API and seed script use the Prisma 8 PostgreSQL runtime; no Prisma 7 client, config, schema, or migration history is retained. The Prisma CLI (`8.0.0-rc.29`) and PostgreSQL runtime (`8.0.0-rc.21`) are separately versioned prereleases; runtime `rc.21` is pinned because `rc.22` failed contract emission with this CLI.
+`server/src/prisma/contract.prisma` is the single source of truth for User, AuthSession, and Task models. Each task records its owner's verified email; task queries and mutations are scoped to that email. Prisma 8 derives runtime types and contract artifacts from this file. The migration history is under root `migrations/app/`. The API and seed script use the Prisma 8 PostgreSQL runtime; no Prisma 7 client, config, schema, or migration history is retained. The Prisma CLI (`8.0.0-rc.29`) and PostgreSQL runtime (`8.0.0-rc.21`) are separately versioned prereleases; runtime `rc.21` is pinned because `rc.22` failed contract emission with this CLI.
 
 `DATABASE_URL` is read only by the backend and Prisma CLI. `.env.example` documents the format without credentials. The frontend receives neither the URL nor database credentials.
+
+Passwords are hashed with Node.js scrypt. Account verification uses one-time hashed tokens that expire after 30 minutes. Sessions use random opaque tokens whose hashes are stored in PostgreSQL and are delivered only through HttpOnly cookies. `LEGACY_TASK_OWNER_EMAIL` assigns unowned existing tasks at API startup to the chosen account.
+
+The API's optional email alert scheduler checks owned due tasks while the API is running. It sends due-date reminders after 9 a.m. in `ALERT_TIMEZONE`, overdue reminders once per hour, and completion messages on status transitions to the task owner's verified email. SMTP credentials are backend-only environment settings; no recipient address is hard-coded.
 
 ## Validation and errors
 

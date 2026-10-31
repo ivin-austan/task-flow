@@ -13,9 +13,14 @@ import {
   taskListQuerySchema,
   updateTaskRequestSchema,
 } from "../validators/task.validator.js";
+import {
+  requireAuth,
+  requireTrustedOrigin,
+} from "../middleware/auth.middleware.js";
 
 export const taskRouter = Router();
 
+taskRouter.use(requireTrustedOrigin, requireAuth);
 taskRouter.get(
   "/",
   validateQuery(taskListQuerySchema, taskController.list),

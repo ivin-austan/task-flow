@@ -20,7 +20,12 @@ import type {
   UpdateTaskInput,
 } from "../types/task.types";
 
-export function DashboardPage() {
+interface DashboardPageProps {
+  userEmail: string;
+  onSignOut: () => void;
+}
+
+export function DashboardPage({ userEmail, onSignOut }: DashboardPageProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const activePage = useUiStore((state) => state.activePage);
@@ -103,7 +108,12 @@ export function DashboardPage() {
   const totalTasks = tasksQuery.data?.meta.total ?? 0;
 
   return (
-    <AppShell activePage={activePage} onNavigate={setActivePage}>
+    <AppShell
+      activePage={activePage}
+      onNavigate={setActivePage}
+      userEmail={userEmail}
+      onSignOut={onSignOut}
+    >
       <div className="space-y-7">
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>

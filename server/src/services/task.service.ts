@@ -11,12 +11,33 @@ import type {
   TaskDto,
   TaskListFilters,
 } from "../types/task.types.js";
+import { sendTaskCompletedAlert } from "./email-alert.service.js";
 
 type TaskRecord = Models.public_Task;
 type TaskStatus = TaskRecord["status"];
 type TaskPriority = TaskRecord["priority"];
 type ApiTaskStatus = TaskDto["status"];
 type ApiTaskPriority = TaskDto["priority"];
+
+export async function assignUnownedTasksToConfiguredEmail(): Promise<void> {
+  const legacyOwnerEmail = process.env["LEGACY_TASK_OWNER_EMAIL"]?.trim().toLowerCase();
+  if (!legacyOwnerEmail) {
+    console.warn(
+      "LEGACY_TASK_OWNER_EMAIL is not set; existing tasks without an owner will remain unavailable to user accounts.",
+    );
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(legacyOwnerEmail)) {
+    throw new Error("LEGACY_TASK_OWNER_EMAIL must be a valid email address.");
+  }
+
+  const result = await db.orm.public.Task
+    .where((task) => task.ownerEmail.isNull())
+    .update({ ownerEmail: legacyOwnerEmail });
+  if (result !== null) {
+    console.log("Assigned existing unowned tasks to the configured legacy owner.");
+  }
+}
 
 export class TaskNotFoundError extends Error {
   constructor() {
@@ -59,9 +80,9 @@ export function toTaskDto(task: TaskRecord): TaskDto {
   };
 }
 
-function whereTasks(filters: TaskListFilters) {
+function whereTasks(filters: TaskListFilters, ownerEmail: string) {
   return db.orm.public.Task.where((task) => {
-    const conditions = [task.id.isNotNull()];
+    const conditions = [task.id.isNotNull(), task.ownerEmail.eq(ownerEmail)];
 
     if (filters.search) {
       const search = filters.search.replace(/[\\%_]/g, "\\$&");
@@ -82,7 +103,7 @@ function whereTasks(filters: TaskListFilters) {
   });
 }
 
-export async function listTasks(query: TaskListQuery) {
+export async function listTasks(query: TaskListQuery, ownerEmail: string) {
   const filters: TaskListFilters = {
     page: query.page,
     pageSize: query.pageSize,
@@ -95,7 +116,7 @@ export async function listTasks(query: TaskListQuery) {
   };
   const skip = (filters.page - 1) * filters.pageSize;
 
-  const recordsQuery = whereTasks(filters)
+  const recordsQuery = whereTasks(filters, ownerEmail)
     .orderBy([
       (task) =>
         filters.sortBy === "dueDate"
@@ -108,7 +129,7 @@ export async function listTasks(query: TaskListQuery) {
 
   const [records, count] = await Promise.all([
     recordsQuery.all(),
-    whereTasks(filters).aggregate((aggregate) => ({
+    whereTasks(filters, ownerEmail).aggregate((aggregate) => ({
       total: aggregate.count(),
     })),
   ]);
@@ -125,8 +146,8 @@ export async function listTasks(query: TaskListQuery) {
   };
 }
 
-export async function getTask(id: string): Promise<TaskDto> {
-  const task = await db.orm.public.Task.first({ id });
+export async function getTask(id: string, ownerEmail: string): Promise<TaskDto> {
+  const task = await db.orm.public.Task.first({ id, ownerEmail });
   if (task === null) {
     throw new TaskNotFoundError();
   }
@@ -138,13 +159,17 @@ function toDueDate(value: string | null | undefined): string | null | undefined 
   return value === "" ? null : value;
 }
 
-export async function createTask(input: CreateTaskBody): Promise<TaskDto> {
+export async function createTask(
+  input: CreateTaskBody,
+  ownerEmail: string,
+): Promise<TaskDto> {
   const task = await db.orm.public.Task.create({
     title: input.title,
     description: input.description || null,
     status: apiToDbStatus[input.status],
     priority: apiToDbPriority[input.priority],
     dueDate: toDueDate(input.dueDate),
+    ownerEmail,
   });
   return toTaskDto(task);
 }
@@ -152,7 +177,13 @@ export async function createTask(input: CreateTaskBody): Promise<TaskDto> {
 export async function updateTask(
   id: string,
   input: UpdateTaskBody,
+  ownerEmail: string,
 ): Promise<TaskDto> {
+  const existing = await db.orm.public.Task.first({ id, ownerEmail });
+  if (existing === null) {
+    throw new TaskNotFoundError();
+  }
+
   const data: {
     title?: string;
     description?: string | null;
@@ -171,40 +202,61 @@ export async function updateTask(
   if (input.dueDate !== undefined) data.dueDate = toDueDate(input.dueDate);
 
   const task = await db.orm.public.Task
-    .where((record) => record.id.eq(id))
+    .where((record) =>
+      and(record.id.eq(id), record.ownerEmail.eq(ownerEmail)),
+    )
     .update(data);
   if (task === null) {
     throw new TaskNotFoundError();
   }
+
+  if (existing.status !== "COMPLETED" && task.status === "COMPLETED") {
+    void sendTaskCompletedAlert(task).catch((error: unknown) => {
+      console.error(`Task completion email alert failed for task ${task.id}.`, error);
+    });
+  }
+
   return toTaskDto(task);
 }
 
-export async function removeTask(id: string): Promise<void> {
+export async function removeTask(id: string, ownerEmail: string): Promise<void> {
   const task = await db.orm.public.Task
-    .where((record) => record.id.eq(id))
+    .where((record) =>
+      and(record.id.eq(id), record.ownerEmail.eq(ownerEmail)),
+    )
     .delete();
   if (task === null) {
     throw new TaskNotFoundError();
   }
 }
 
-export async function getDashboardStatistics(): Promise<DashboardStatistics> {
+export async function getDashboardStatistics(
+  ownerEmail: string,
+): Promise<DashboardStatistics> {
   const [totalResult, highPriorityResult, todoResult, inProgressResult, completedResult] =
     await Promise.all([
-      db.orm.public.Task.aggregate((aggregate) => ({
-        count: aggregate.count(),
-      })),
       db.orm.public.Task
-        .where((task) => task.priority.eq("HIGH"))
+        .where((task) => task.ownerEmail.eq(ownerEmail))
         .aggregate((aggregate) => ({ count: aggregate.count() })),
       db.orm.public.Task
-        .where((task) => task.status.eq("TODO"))
+        .where((task) =>
+          and(task.ownerEmail.eq(ownerEmail), task.priority.eq("HIGH")),
+        )
         .aggregate((aggregate) => ({ count: aggregate.count() })),
       db.orm.public.Task
-        .where((task) => task.status.eq("IN_PROGRESS"))
+        .where((task) =>
+          and(task.ownerEmail.eq(ownerEmail), task.status.eq("TODO")),
+        )
         .aggregate((aggregate) => ({ count: aggregate.count() })),
       db.orm.public.Task
-        .where((task) => task.status.eq("COMPLETED"))
+        .where((task) =>
+          and(task.ownerEmail.eq(ownerEmail), task.status.eq("IN_PROGRESS")),
+        )
+        .aggregate((aggregate) => ({ count: aggregate.count() })),
+      db.orm.public.Task
+        .where((task) =>
+          and(task.ownerEmail.eq(ownerEmail), task.status.eq("COMPLETED")),
+        )
         .aggregate((aggregate) => ({ count: aggregate.count() })),
     ]);
 

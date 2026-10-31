@@ -14,6 +14,65 @@ Successful responses use `{ "data": ... }`. Paginated task lists also include `m
 }
 ```
 
+## Authentication
+
+The API supports open email/password registration. Passwords must be at least
+12 characters and at most 128 characters. Registration sends a verification
+link that expires after 30 minutes. SMTP must be configured on the API to
+register or verify accounts. Sign-in sets an HttpOnly session cookie that
+expires after seven days. The browser must send credentialed requests from the
+configured `CLIENT_ORIGIN`. Task routes require a verified session and only
+expose tasks owned by the signed-in email.
+
+### `POST /api/auth/register`
+
+```json
+{ "email": "you@example.com", "password": "at-least-12-characters" }
+```
+
+- **202** — generic message indicating a verification email may have been sent
+- **400** — invalid email or password
+- **503** — email delivery is unavailable
+
+### `POST /api/auth/verify`
+
+Accepts the one-time token included in the verification link:
+
+```json
+{ "token": "verification-token" }
+```
+
+- **200** — email verified
+- **400** — token is invalid or expired
+
+### `POST /api/auth/login`
+
+Accepts `{ "email": "...", "password": "..." }`. Returns the verified user and
+sets the session cookie.
+
+- **200** — signed in
+- **400** — invalid request
+- **401** — invalid credentials
+- **403** — email is not verified
+- **429** — too many account requests
+
+### `GET /api/auth/me`
+
+Returns the current signed-in user. **401** if there is no valid session.
+
+### `POST /api/auth/logout`
+
+Revokes the current session and clears the cookie. Requires the trusted
+frontend origin.
+
+## Task ownership
+
+Every task endpoint requires a verified session. Tasks created in the API are
+assigned to the signed-in email; list, detail, update, delete, and dashboard
+queries only include that email's tasks. Requests for another owner's task
+return **404**. Existing tasks receive the configured
+`LEGACY_TASK_OWNER_EMAIL` at API startup while their owner is unset.
+
 ## `GET /api/health`
 
 Checks that the API can reach PostgreSQL.

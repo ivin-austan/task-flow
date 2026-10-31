@@ -13,6 +13,7 @@ import {
   removeTask,
   updateTask,
 } from "../services/task.service.js";
+import { getAuthenticatedUser } from "../middleware/auth.middleware.js";
 
 export async function list(
   _request: Request,
@@ -20,7 +21,7 @@ export async function list(
   _next: NextFunction,
   query: TaskListQuery,
 ): Promise<void> {
-  response.json(await listTasks(query));
+  response.json(await listTasks(query, getAuthenticatedUser(_request).email));
 }
 
 export async function getById(
@@ -29,7 +30,9 @@ export async function getById(
   _next: NextFunction,
   params: TaskIdParams,
 ): Promise<void> {
-  response.json({ data: await getTask(params.id) });
+  response.json({
+    data: await getTask(params.id, getAuthenticatedUser(_request).email),
+  });
 }
 
 export async function create(
@@ -38,7 +41,9 @@ export async function create(
   _next: NextFunction,
   body: CreateTaskBody,
 ): Promise<void> {
-  response.status(201).json({ data: await createTask(body) });
+  response.status(201).json({
+    data: await createTask(body, getAuthenticatedUser(_request).email),
+  });
 }
 
 export async function update(
@@ -47,7 +52,13 @@ export async function update(
   _next: NextFunction,
   values: { params: TaskIdParams; body: UpdateTaskBody },
 ): Promise<void> {
-  response.json({ data: await updateTask(values.params.id, values.body) });
+  response.json({
+    data: await updateTask(
+      values.params.id,
+      values.body,
+      getAuthenticatedUser(_request).email,
+    ),
+  });
 }
 
 export async function remove(
@@ -56,10 +67,12 @@ export async function remove(
   _next: NextFunction,
   params: TaskIdParams,
 ): Promise<void> {
-  await removeTask(params.id);
+  await removeTask(params.id, getAuthenticatedUser(_request).email);
   response.status(204).end();
 }
 
-export async function dashboard(_request: Request, response: Response): Promise<void> {
-  response.json({ data: await getDashboardStatistics() });
+export async function dashboard(request: Request, response: Response): Promise<void> {
+  response.json({
+    data: await getDashboardStatistics(getAuthenticatedUser(request).email),
+  });
 }

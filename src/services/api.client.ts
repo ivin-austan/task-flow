@@ -41,6 +41,7 @@ export async function apiRequest(
   try {
     response = await fetch(`${apiBaseUrl}/api${path}`, {
       ...init,
+      credentials: "include",
       headers,
     });
   } catch (error: unknown) {
