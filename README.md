@@ -4,9 +4,11 @@ Taskflow is a full-stack task manager. The React + TypeScript frontend uses TanS
 
 ## Requirements
 
-- Node.js 20.19+ (Node 24 is supported)
+- Node.js 22.18+ or 24.11+ (Node 26+ is also supported)
 - PostgreSQL 15+
 - npm
+
+The project is being migrated incrementally: Prisma ORM 8 CLI `8.0.0-rc.29` and PostgreSQL runtime `8.0.0-rc.21` are installed alongside the Prisma ORM 7 application. The runtime is pinned to `rc.21` because the latest `rc.22` failed contract emission with this CLI. The current API and database migrations still use Prisma 7 while the Prisma 8 contract is emitted from the existing schema. Prisma 8 packages are prereleases and are not recommended for production.
 
 ## Local setup
 
@@ -54,6 +56,7 @@ Taskflow is a full-stack task manager. The React + TypeScript frontend uses TanS
 | `npm run db:migrate` | Create/apply a development migration |
 | `npm run db:deploy` | Apply committed migrations in deployment |
 | `npm run db:seed` | Seed sample tasks into an empty database |
+| `npm run db8:emit` | Emit Prisma 8 contract artifacts from the existing schema |
 | `npm run dev:api` | Run the API with watch mode |
 | `npm run dev` | Run the Vite frontend |
 | `npm run build` | Type-check and build frontend and backend |
@@ -73,4 +76,4 @@ npm run start:api
 - [Architecture](./docs/PROJECT_ARCHITECTURE.md)
 - [TypeScript learning notes](./docs/TYPESCRIPT_LEARNING_NOTES.md)
 
-The app does not currently implement authentication. Configure trusted local database credentials in `.env`; database credentials are never sent to the browser.
+The API still uses the Prisma 7 client during this migration phase. The app does not currently implement authentication. Configure trusted local database credentials in `.env`; database credentials are never sent to the browser.

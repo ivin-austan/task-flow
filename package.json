@@ -10,15 +10,17 @@
     "build": "npm run db:generate && tsc -b && tsc -p tsconfig.server.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "db:generate": "prisma7 generate",
+    "db:migrate": "prisma7 migrate dev",
+    "db:deploy": "prisma7 migrate deploy",
+    "db:seed": "prisma7 db seed",
+    "db8:emit": "prisma contract emit"
   },
   "dependencies": {
     "@hookform/resolvers": "^6.0.2",
-    "@prisma/adapter-pg": "^7.10.1",
-    "@prisma/client": "^7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "@prisma/orm-postgres": "8.0.0-rc.21",
     "@tanstack/react-query": "^5.105.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@eslint/js": "^10.0.1",
+    "@prisma/prisma7": "7.10.1",
     "@rolldown/plugin-babel": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
     "@types/babel__core": "^7.20.5",
@@ -48,10 +51,10 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
-    "prisma": "^7.10.1",
+    "prisma": "8.0.0-rc.29",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "~5.8.3",
+    "typescript": "5.9.3",
     "typescript-eslint": "^8.72.0",
     "vite": "^8.3.5"
   }
