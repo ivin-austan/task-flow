@@ -10,6 +10,8 @@ Taskflow is a full-stack task manager. The React + TypeScript frontend uses TanS
 
 The project is being migrated incrementally: Prisma ORM 8 CLI `8.0.0-rc.29` and PostgreSQL runtime `8.0.0-rc.21` are installed alongside the Prisma ORM 7 application. The runtime is pinned to `rc.21` because the latest `rc.22` failed contract emission with this CLI. The current API and database migrations still use Prisma 7 while the Prisma 8 contract is emitted from the existing schema. Prisma 8 packages are prereleases and are not recommended for production.
 
+Prisma 8's initial migration is tracked under `migrations/app/`. It was planned from an empty database for the Prisma deployment target. The legacy Prisma 7 SQL migration remains under `server/prisma/migrations/`.
+
 ## Local setup
 
 1. Install packages, then configure the database connection:
@@ -57,6 +59,7 @@ The project is being migrated incrementally: Prisma ORM 8 CLI `8.0.0-rc.29` and 
 | `npm run db:deploy` | Apply committed migrations in deployment |
 | `npm run db:seed` | Seed sample tasks into an empty database |
 | `npm run db8:emit` | Emit Prisma 8 contract artifacts from the existing schema |
+| `npm run db8:migrate` | Apply committed Prisma 8 migrations |
 | `npm run dev:api` | Run the API with watch mode |
 | `npm run dev` | Run the Vite frontend |
 | `npm run build` | Type-check and build frontend and backend |
