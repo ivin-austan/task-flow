@@ -63,6 +63,12 @@ The application uses Prisma ORM 8 only. Its data contract is [server/src/prisma/
 | `npm run start:api` | Run the compiled API |
 | `npm run lint` | Lint the project |
 
+## Production deployment
+
+The frontend uses `VITE_API_URL` as the API origin. Set it in the frontend host's build environment to the deployed API origin, for example `https://your-api.onrender.com` (no trailing slash), then rebuild and redeploy the frontend. Leave it empty for local development, where Vite proxies `/api` to `http://localhost:4000`.
+
+Set `CLIENT_ORIGIN` on the API host to the exact deployed frontend origin, such as `https://your-site.netlify.app`, so the API allows browser requests from that site. Set `DATABASE_URL` on the API host to the hosted PostgreSQL connection string. Neither backend variable belongs in frontend environment settings.
+
 Build before running the compiled API:
 
 ```sh

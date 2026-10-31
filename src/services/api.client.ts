@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const apiBaseUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "") ?? "";
+
 const apiErrorSchema = z.object({
   error: z.object({
     code: z.string(),
@@ -37,7 +39,7 @@ export async function apiRequest(
     headers.set("Content-Type", "application/json");
   }
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(`${apiBaseUrl}/api${path}`, {
       ...init,
       headers,
     });
