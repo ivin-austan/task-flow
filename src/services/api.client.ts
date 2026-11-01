@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL?.replace(/\/+$/, "") ?? "";
+console.log("api", apiBaseUrl);
 
 const apiErrorSchema = z.object({
   error: z.object({
@@ -15,12 +16,7 @@ export class ApiError extends Error {
   readonly code: string;
   readonly details: unknown;
 
-  constructor(
-    message: string,
-    status: number,
-    code: string,
-    details: unknown,
-  ) {
+  constructor(message: string, status: number, code: string, details: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -47,7 +43,12 @@ export async function apiRequest(
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "The API could not be reached.";
-    throw new ApiError(`Could not connect to the task API. ${message}`, 0, "NETWORK_ERROR", error);
+    throw new ApiError(
+      `Could not connect to the task API. ${message}`,
+      0,
+      "NETWORK_ERROR",
+      error,
+    );
   }
 
   if (response.status === 204) {
@@ -69,7 +70,9 @@ export async function apiRequest(
   if (!response.ok) {
     const parsedError = apiErrorSchema.safeParse(body);
     throw new ApiError(
-      parsedError.success ? parsedError.data.error.message : "The request failed.",
+      parsedError.success
+        ? parsedError.data.error.message
+        : "The request failed.",
       response.status,
       parsedError.success ? parsedError.data.error.code : "API_ERROR",
       parsedError.success ? parsedError.data.error.details : undefined,
