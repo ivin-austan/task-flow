@@ -73,7 +73,7 @@ The frontend uses `VITE_API_URL` as the API origin. Set it in the frontend host'
 
 Set `CLIENT_ORIGIN` on the API host to the exact deployed frontend origin, such as `https://your-site.netlify.app`, so the API allows credentialed browser requests from that site. Set `DATABASE_URL`, `LEGACY_TASK_OWNER_EMAIL`, `SMTP_USER`, `SMTP_PASSWORD`, and `ALERT_TIMEZONE` on the API host. These are backend settings and do not belong in frontend environment settings. Apply database migrations with `npm run db:deploy` before starting the updated API.
 
-The API uses a seven-day HttpOnly session cookie. Email/password accounts require a verified email before sign-in; passwords must be at least 12 characters. Task lists, task details, mutations, dashboard totals, and alerts are scoped to the signed-in, verified email. If you have existing tasks, ensure the legacy owner email matches the account you verify.
+The API uses a seven-day HttpOnly session cookie. Email/password accounts require a verified email before sign-in; passwords must be at least 8 characters. Task lists, task details, mutations, dashboard totals, and alerts are scoped to the signed-in, verified email. If you have existing tasks, ensure the legacy owner email matches the account you verify.
 
 Build before running the compiled API:
 

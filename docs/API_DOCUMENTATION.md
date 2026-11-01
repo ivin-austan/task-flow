@@ -17,7 +17,7 @@ Successful responses use `{ "data": ... }`. Paginated task lists also include `m
 ## Authentication
 
 The API supports open email/password registration. Passwords must be at least
-12 characters and at most 128 characters. Registration sends a verification
+8 characters and at most 128 characters. Registration sends a verification
 link that expires after 30 minutes. SMTP must be configured on the API to
 register or verify accounts. Sign-in sets an HttpOnly session cookie that
 expires after seven days. The browser must send credentialed requests from the
@@ -27,7 +27,7 @@ expose tasks owned by the signed-in email.
 ### `POST /api/auth/register`
 
 ```json
-{ "email": "you@example.com", "password": "at-least-12-characters" }
+{ "email": "you@example.com", "password": "at-least-8-characters" }
 ```
 
 - **202** — generic message indicating a verification email may have been sent

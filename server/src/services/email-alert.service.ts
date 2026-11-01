@@ -19,7 +19,9 @@ function getEmailAlertConfig(): EmailAlertConfig | null {
     return null;
   }
   if (!user || !password) {
-    throw new Error("Email delivery requires both SMTP_USER and SMTP_PASSWORD.");
+    throw new Error(
+      "Email delivery requires both SMTP_USER and SMTP_PASSWORD.",
+    );
   }
 
   const host = process.env["SMTP_HOST"]?.trim() || "smtp.gmail.com";
@@ -41,6 +43,7 @@ function getEmailAlertConfig(): EmailAlertConfig | null {
 }
 
 const config = getEmailAlertConfig();
+
 const transporter = config
   ? nodemailer.createTransport({
       host: config.host,
@@ -122,9 +125,17 @@ export function sendDueDateAlert(task: TaskRecord): Promise<void> {
 }
 
 export function sendOverdueAlert(task: TaskRecord): Promise<void> {
-  return sendTaskAlert("Task overdue", task, "This unfinished task is overdue.");
+  return sendTaskAlert(
+    "Task overdue",
+    task,
+    "This unfinished task is overdue.",
+  );
 }
 
 export function sendTaskCompletedAlert(task: TaskRecord): Promise<void> {
-  return sendTaskAlert("Task completed", task, "You marked this task as completed.");
+  return sendTaskAlert(
+    "Task completed",
+    task,
+    "You marked this task as completed.",
+  );
 }

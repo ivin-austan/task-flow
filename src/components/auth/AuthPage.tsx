@@ -108,7 +108,7 @@ export function AuthPage({
               type="password"
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               required
-              minLength={mode === "signup" ? 12 : 1}
+              minLength={mode === "signup" ? 8 : 1}
               maxLength={128}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -116,7 +116,7 @@ export function AuthPage({
             />
             {mode === "signup" && (
               <span className="mt-1 block text-xs font-normal text-slate-500">
-                Use at least 12 characters.
+                Use at least 8 characters.
               </span>
             )}
           </label>

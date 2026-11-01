@@ -2,12 +2,18 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { taskRouter } from "./routes/task.routes.js";
-import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./middleware/error.middleware.js";
 import { asyncHandler } from "./utils/async-handler.js";
 import { db } from "./prisma/db.js";
 import { authRouter } from "./routes/auth.routes.js";
 
 export const app = express();
+console.log("coming");
+
+console.log(process.env["SMTP_USER"]);
 
 const clientOrigin = process.env.CLIENT_ORIGIN ?? "http://localhost:5173";
 
